@@ -1,4 +1,5 @@
 [workspace]
 members = [
-  "trajectory-planner"
+  "trajectory-planner",
+  "blog-1-trapezoidal-1d"
 ]

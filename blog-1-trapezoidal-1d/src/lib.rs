@@ -1,4 +1,7 @@
+extern crate console_error_panic_hook;
+
 use std::cell::Cell;
+use std::panic;
 use std::rc::Rc;
 use trajectory_planner::TrajectorySegment;
 use wasm_bindgen::prelude::*;
@@ -6,6 +9,8 @@ use wasm_bindgen::JsCast;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document
         .create_element("canvas")?

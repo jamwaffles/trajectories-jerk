@@ -26,11 +26,17 @@ pub fn start() -> Result<(), JsValue> {
         .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
     let num_steps = 100;
-    let start = 0.0;
-    let end = 10.0;
     let padding_left = 10.0;
 
-    let segment = TrajectorySegment::new(start, end, 5.0, 2.0);
+    // Config
+    let start = 0.0;
+    let end = 10.0;
+    let start_velocity = 0.0;
+    let end_velocity = 0.0;
+    let max_acceleration = 5.0;
+    let max_velocity = 2.0;
+
+    let segment = TrajectorySegment::new(start, end, start_velocity, end_velocity);
 
     web_sys::console::log_1(&format!("Traj: {:#?}", segment).into());
 
@@ -40,9 +46,9 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#000".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration * i as f32 / num_steps as f32;
+        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
 
-        let y = (height / 2) as f32 - segment.position(time) * 10.0;
+        let y = (height / 2) as f32 - segment.position(time, max_acceleration, max_velocity) * 10.0;
 
         web_sys::console::log_1(&format!("Pos T: {}, Y: {}", time, y).into());
 
@@ -61,9 +67,9 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#f00".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration * i as f32 / num_steps as f32;
+        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
 
-        let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
+        let y = (height / 2) as f32 - segment.velocity(time, max_acceleration, max_velocity) * 10.0;
 
         web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
 
@@ -82,9 +88,10 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#00f".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration * i as f32 / num_steps as f32;
+        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
 
-        let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
+        let y =
+            (height / 2) as f32 - segment.acceleration(time, max_acceleration, max_velocity) * 10.0;
 
         web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
 

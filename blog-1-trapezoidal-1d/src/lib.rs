@@ -32,21 +32,22 @@ fn draw_profiles(
 ) {
     context.clear_rect(0.0, 0.0, width as f64, height as f64);
 
-    let num_steps = 100;
-    let padding_left = 10.0;
+    let padding = 10;
+    let padded_width = width - padding * 2;
+    let padding = padding as f64;
 
     // Position
     context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
+    context.move_to(padding, (height / 2) as f64);
     context.set_stroke_style(&("#000".into()));
 
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
+    for i in 0..padded_width {
+        let time = segment.duration() * i as f32 / padded_width as f32;
 
         let y = (height / 2) as f32 - segment.position(time) * 10.0;
 
         context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
+            padding + (padded_width / padded_width) as f64 * i as f64,
             y as f64,
         );
     }
@@ -56,16 +57,16 @@ fn draw_profiles(
 
     // Velocity
     context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
+    context.move_to(padding, (height / 2) as f64);
     context.set_stroke_style(&("#f00".into()));
 
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
+    for i in 0..padded_width {
+        let time = segment.duration() * i as f32 / padded_width as f32;
 
         let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
 
         context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
+            padding + (padded_width / padded_width) as f64 * i as f64,
             y as f64,
         );
     }
@@ -75,16 +76,16 @@ fn draw_profiles(
 
     // Acceleration
     context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
+    context.move_to(padding, (height / 2) as f64);
     context.set_stroke_style(&("#00f".into()));
 
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
+    for i in 0..padded_width {
+        let time = segment.duration() * i as f32 / padded_width as f32;
 
         let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
 
         context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
+            padding + (padded_width / padded_width) as f64 * i as f64,
             y as f64,
         );
     }

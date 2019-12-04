@@ -1,14 +1,13 @@
 extern crate console_error_panic_hook;
 
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::panic;
 use std::rc::Rc;
 use trajectory_planner::{Limits, TrajectorySegment};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::CanvasRenderingContext2d;
 use web_sys::Element;
-use web_sys::Node;
 
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -22,6 +21,75 @@ struct Controls {
 
 fn display_config(container: &Element, config: &TrajectorySegment) {
     container.set_inner_html(&format!("{:#?}", config));
+}
+
+fn draw_profiles(
+    context: &CanvasRenderingContext2d,
+    segment: &TrajectorySegment,
+    width: u32,
+    height: u32,
+) {
+    context.clear_rect(0.0, 0.0, width as f64, height as f64);
+
+    let num_steps = 100;
+    let padding_left = 10.0;
+
+    // Position
+    context.begin_path();
+    context.move_to(padding_left, (height / 2) as f64);
+    context.set_stroke_style(&("#000".into()));
+
+    for i in 0..num_steps {
+        let time = segment.duration() * i as f32 / num_steps as f32;
+
+        let y = (height / 2) as f32 - segment.position(time) * 10.0;
+
+        context.line_to(
+            padding_left + (width / num_steps) as f64 * i as f64,
+            y as f64,
+        );
+    }
+
+    context.stroke();
+    context.close_path();
+
+    // Velocity
+    context.begin_path();
+    context.move_to(padding_left, (height / 2) as f64);
+    context.set_stroke_style(&("#f00".into()));
+
+    for i in 0..num_steps {
+        let time = segment.duration() * i as f32 / num_steps as f32;
+
+        let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
+
+        context.line_to(
+            padding_left + (width / num_steps) as f64 * i as f64,
+            y as f64,
+        );
+    }
+
+    context.stroke();
+    context.close_path();
+
+    // Acceleration
+    context.begin_path();
+    context.move_to(padding_left, (height / 2) as f64);
+    context.set_stroke_style(&("#00f".into()));
+
+    for i in 0..num_steps {
+        let time = segment.duration() * i as f32 / num_steps as f32;
+
+        let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
+
+        context.line_to(
+            padding_left + (width / num_steps) as f64 * i as f64,
+            y as f64,
+        );
+    }
+
+    context.stroke();
+    context.close_path();
 }
 
 #[wasm_bindgen]
@@ -64,9 +132,6 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         .unwrap()
         .dyn_into::<web_sys::CanvasRenderingContext2d>()?;
 
-    let num_steps = 100;
-    let padding_left = 10.0;
-
     let segment = TrajectorySegment::new(
         0.0,
         10.0,
@@ -78,77 +143,12 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         },
     );
 
-    // web_sys::console::log_1(&format!("Traj: {:#?}", segment).into());
-
-    // Position
-    context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
-    context.set_stroke_style(&("#000".into()));
-
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
-
-        let y = (height / 2) as f32 - segment.position(time) * 10.0;
-
-        // web_sys::console::log_1(&format!("Pos T: {}, Y: {}", time, y).into());
-
-        context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
-            y as f64,
-        );
-    }
-
-    context.stroke();
-    context.close_path();
-
-    // Velocity
-    context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
-    context.set_stroke_style(&("#f00".into()));
-
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
-
-        let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
-
-        // web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
-
-        context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
-            y as f64,
-        );
-    }
-
-    context.stroke();
-    context.close_path();
-
-    // Acceleration
-    context.begin_path();
-    context.move_to(padding_left, (height / 2) as f64);
-    context.set_stroke_style(&("#00f".into()));
-
-    for i in 0..num_steps {
-        let time = segment.duration() * i as f32 / num_steps as f32;
-
-        let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
-
-        // web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
-
-        context.line_to(
-            padding_left + (width / num_steps) as f64 * i as f64,
-            y as f64,
-        );
-    }
-
-    context.stroke();
-    context.close_path();
-
-    // let context = Rc::new(context);
-    // let pressed = Rc::new(Cell::new(false));
+    draw_profiles(&context, &segment, width, height);
 
     let controls = Rc::new(controls);
     let out = Rc::new(out);
     let segment = Rc::new(RefCell::new(segment));
+    let context = Rc::new(RefCell::new(context));
 
     {
         let controls = controls.clone();
@@ -169,6 +169,7 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
             segment.borrow_mut().set_velocity_limit(max_velocity);
 
             display_config(&out, &segment.borrow());
+            draw_profiles(&context.borrow(), &segment.borrow(), width, height);
         }) as Box<dyn FnMut(_)>);
 
         controls

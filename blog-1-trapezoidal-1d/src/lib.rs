@@ -17,6 +17,7 @@ macro_rules! log {
 
 struct Controls {
     max_velocity: Element,
+    max_acceleration: Element,
 }
 
 fn display_config(container: &Element, config: &TrajectorySegment) {
@@ -117,6 +118,9 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         max_velocity: control_inputs
             .query_selector("[name=max_velocity]")?
             .expect("Required input name max_velocity missing"),
+        max_acceleration: control_inputs
+            .query_selector("[name=max_acceleration]")?
+            .expect("Required input name max_velocity missing"),
     };
 
     let width = 640;
@@ -150,10 +154,12 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
     let segment = Rc::new(RefCell::new(segment));
     let context = Rc::new(RefCell::new(context));
 
+    // Velocity limit handler
     {
         let controls = controls.clone();
         let out = out.clone();
         let segment = segment.clone();
+        let context = context.clone();
 
         let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
             let value = event
@@ -177,31 +183,38 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
             .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
-    // {
-    //     let context = context.clone();
-    //     let pressed = pressed.clone();
-    //     let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-    //         if pressed.get() {
-    //             context.line_to(event.offset_x() as f64, event.offset_y() as f64);
-    //             context.stroke();
-    //             context.begin_path();
-    //             context.move_to(event.offset_x() as f64, event.offset_y() as f64);
-    //         }
-    //     }) as Box<dyn FnMut(_)>);
-    //     canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
-    //     closure.forget();
-    // }
-    // {
-    //     let context = context.clone();
-    //     let pressed = pressed.clone();
-    //     let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-    //         pressed.set(false);
-    //         context.line_to(event.offset_x() as f64, event.offset_y() as f64);
-    //         context.stroke();
-    //     }) as Box<dyn FnMut(_)>);
-    //     canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref())?;
-    //     closure.forget();
-    // }
+
+    // Acceleration limit handler
+    {
+        let controls = controls.clone();
+        let out = out.clone();
+        let segment = segment.clone();
+        let context = context.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
+            let value = event
+                .target()
+                .as_ref()
+                .map(|t| wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(t))
+                .expect("Unable to get value")
+                .expect("Unable to get value")
+                .value();
+
+            let max_acceleration = value.parse::<f32>().expect("Value is not valid f32");
+
+            segment
+                .borrow_mut()
+                .set_acceleration_limit(max_acceleration);
+
+            display_config(&out, &segment.borrow());
+            draw_profiles(&context.borrow(), &segment.borrow(), width, height);
+        }) as Box<dyn FnMut(_)>);
+
+        controls
+            .max_acceleration
+            .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
 
     Ok(())
 }

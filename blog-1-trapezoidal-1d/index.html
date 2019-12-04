@@ -1,8 +1,15 @@
 <html>
   <head>
-    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
   </head>
   <body>
+    <div id="demo-container-trapezoidal-1d">
+      <div class="demo-controls">
+        <input type="range" name="max_velocity" min="0" max="10" step="0.1" />
+      </div>
+      <pre class="out">Waiting for change...</pre>
+    </div>
+
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
     <script type="module">
       // Use ES module import syntax to import functionality from the module
@@ -29,10 +36,11 @@
         // exports which is the same as importing the `*_bg` module in other
         // modes
         await init();
+
+        start(document.getElementById('demo-container-trapezoidal-1d'));
       }
 
       run();
     </script>
   </body>
 </html>
-

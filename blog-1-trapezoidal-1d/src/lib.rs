@@ -1,27 +1,61 @@
 extern crate console_error_panic_hook;
 
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::panic;
 use std::rc::Rc;
-use trajectory_planner::TrajectorySegment;
+use trajectory_planner::{Limits, TrajectorySegment};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::Element;
+use web_sys::Node;
 
-#[wasm_bindgen(start)]
-pub fn start() -> Result<(), JsValue> {
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
+}
+
+struct Controls {
+    max_velocity: Element,
+}
+
+fn display_config(container: &Element, config: &TrajectorySegment) {
+    container.set_inner_html(&format!("{:#?}", config));
+}
+
+#[wasm_bindgen]
+pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
+
+    log!("Thing: {:#?}", container);
 
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document
         .create_element("canvas")?
         .dyn_into::<web_sys::HtmlCanvasElement>()?;
-    document.body().unwrap().append_child(&canvas)?;
+
+    container.prepend_with_node_1(&canvas)?;
+
+    let control_inputs = container
+        .query_selector(".demo-controls")?
+        .expect("Element .demo-controls does not exist");
+
+    let out = container
+        .query_selector(".out")?
+        .expect("Element .out is missing");
+
+    let controls = Controls {
+        max_velocity: control_inputs
+            .query_selector("[name=max_velocity]")?
+            .expect("Required input name max_velocity missing"),
+    };
 
     let width = 640;
     let height = 480;
 
     canvas.set_width(width);
-    canvas.set_height(480);
+    canvas.set_height(height);
     canvas.style().set_property("border", "solid")?;
     canvas.style().set_property("border-width", "1px")?;
 
@@ -33,17 +67,18 @@ pub fn start() -> Result<(), JsValue> {
     let num_steps = 100;
     let padding_left = 10.0;
 
-    // Config
-    let start = 0.0;
-    let end = 10.0;
-    let start_velocity = 0.0;
-    let end_velocity = 0.0;
-    let max_acceleration = 5.0;
-    let max_velocity = 2.0;
+    let segment = TrajectorySegment::new(
+        0.0,
+        10.0,
+        0.0,
+        0.0,
+        Limits {
+            velocity: 2.0,
+            acceleration: 5.0,
+        },
+    );
 
-    let segment = TrajectorySegment::new(start, end, start_velocity, end_velocity);
-
-    web_sys::console::log_1(&format!("Traj: {:#?}", segment).into());
+    // web_sys::console::log_1(&format!("Traj: {:#?}", segment).into());
 
     // Position
     context.begin_path();
@@ -51,11 +86,11 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#000".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
+        let time = segment.duration() * i as f32 / num_steps as f32;
 
-        let y = (height / 2) as f32 - segment.position(time, max_acceleration, max_velocity) * 10.0;
+        let y = (height / 2) as f32 - segment.position(time) * 10.0;
 
-        web_sys::console::log_1(&format!("Pos T: {}, Y: {}", time, y).into());
+        // web_sys::console::log_1(&format!("Pos T: {}, Y: {}", time, y).into());
 
         context.line_to(
             padding_left + (width / num_steps) as f64 * i as f64,
@@ -72,11 +107,11 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#f00".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
+        let time = segment.duration() * i as f32 / num_steps as f32;
 
-        let y = (height / 2) as f32 - segment.velocity(time, max_acceleration, max_velocity) * 10.0;
+        let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
 
-        web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
+        // web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
 
         context.line_to(
             padding_left + (width / num_steps) as f64 * i as f64,
@@ -93,12 +128,11 @@ pub fn start() -> Result<(), JsValue> {
     context.set_stroke_style(&("#00f".into()));
 
     for i in 0..num_steps {
-        let time = segment.duration(max_acceleration, max_velocity) * i as f32 / num_steps as f32;
+        let time = segment.duration() * i as f32 / num_steps as f32;
 
-        let y =
-            (height / 2) as f32 - segment.acceleration(time, max_acceleration, max_velocity) * 10.0;
+        let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
 
-        web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
+        // web_sys::console::log_1(&format!("Vel T: {}, Y: {}", time, y).into());
 
         context.line_to(
             padding_left + (width / num_steps) as f64 * i as f64,
@@ -112,17 +146,36 @@ pub fn start() -> Result<(), JsValue> {
     // let context = Rc::new(context);
     // let pressed = Rc::new(Cell::new(false));
 
-    // {
-    //     let context = context.clone();
-    //     let pressed = pressed.clone();
-    //     let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-    //         context.begin_path();
-    //         context.move_to(event.offset_x() as f64, event.offset_y() as f64);
-    //         pressed.set(true);
-    //     }) as Box<dyn FnMut(_)>);
-    //     canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
-    //     closure.forget();
-    // }
+    let controls = Rc::new(controls);
+    let out = Rc::new(out);
+    let segment = Rc::new(RefCell::new(segment));
+
+    {
+        let controls = controls.clone();
+        let out = out.clone();
+        let segment = segment.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
+            let value = event
+                .target()
+                .as_ref()
+                .map(|t| wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(t))
+                .expect("Unable to get value")
+                .expect("Unable to get value")
+                .value();
+
+            let max_velocity = value.parse::<f32>().expect("Value is not valid f32");
+
+            segment.borrow_mut().set_velocity_limit(max_velocity);
+
+            display_config(&out, &segment.borrow());
+        }) as Box<dyn FnMut(_)>);
+
+        controls
+            .max_velocity
+            .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
     // {
     //     let context = context.clone();
     //     let pressed = pressed.clone();

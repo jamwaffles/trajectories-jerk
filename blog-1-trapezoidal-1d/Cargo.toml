@@ -20,11 +20,15 @@ features = [
   'Element',
   'EventTarget',
   'HtmlCanvasElement',
+  'HtmlInputElement',
+  'HtmlDivElement',
   'HtmlElement',
+  'InputEvent',
   'MouseEvent',
   'Node',
   'Window',
-  'console'
+  'console',
+  'Event'
 ]
 
 [dependencies.trajectory-planner]

@@ -5,20 +5,52 @@
   <body>
     <div id="demo-container-trapezoidal-1d">
       <div class="demo-controls">
-        <label
-          >Max velocity
-          <input type="range" name="max_velocity" min="0" max="10" step="0.1"
-        /></label>
+        <div>
+          <label
+            >Max velocity
+            <input
+              type="range"
+              name="max_velocity"
+              min="0"
+              max="10"
+              step="0.1"
+              value="2"
+          /></label>
 
-        <label
-          >Max acceleration
-          <input
-            type="range"
-            name="max_acceleration"
-            min="0"
-            max="10"
-            step="0.1"
-        /></label>
+          <label
+            >Max acceleration
+            <input
+              type="range"
+              name="max_acceleration"
+              min="0"
+              max="10"
+              step="0.1"
+              value="5"
+          /></label>
+        </div>
+        <div>
+          <label
+            >Start velocity
+            <input
+              type="range"
+              name="start_velocity"
+              min="0"
+              max="10"
+              step="0.1"
+              value="0"
+          /></label>
+
+          <label
+            >Final velocity
+            <input
+              type="range"
+              name="end_velocity"
+              min="0"
+              max="10"
+              step="0.1"
+              value="0"
+          /></label>
+        </div>
       </div>
       <pre class="out">Waiting for change...</pre>
     </div>

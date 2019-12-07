@@ -18,6 +18,8 @@ macro_rules! log {
 struct Controls {
     max_velocity: Element,
     max_acceleration: Element,
+    start_velocity: Element,
+    end_velocity: Element,
 }
 
 fn display_config(container: &Element, config: &TrajectorySegment) {
@@ -122,6 +124,12 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         max_acceleration: control_inputs
             .query_selector("[name=max_acceleration]")?
             .expect("Required input name max_velocity missing"),
+        start_velocity: control_inputs
+            .query_selector("[name=start_velocity]")?
+            .expect("Required input name start_velocity missing"),
+        end_velocity: control_inputs
+            .query_selector("[name=end_velocity]")?
+            .expect("Required input name end_velocity missing"),
     };
 
     let width = 640;
@@ -213,6 +221,66 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
 
         controls
             .max_acceleration
+            .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    // Start velocity handler
+    {
+        let controls = controls.clone();
+        let out = out.clone();
+        let segment = segment.clone();
+        let context = context.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
+            let value = event
+                .target()
+                .as_ref()
+                .map(|t| wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(t))
+                .expect("Unable to get value")
+                .expect("Unable to get value")
+                .value();
+
+            let start_velocity = value.parse::<f32>().expect("Value is not valid f32");
+
+            segment.borrow_mut().set_start_velocity(start_velocity);
+
+            display_config(&out, &segment.borrow());
+            draw_profiles(&context.borrow(), &segment.borrow(), width, height);
+        }) as Box<dyn FnMut(_)>);
+
+        controls
+            .start_velocity
+            .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    // End velocity handler
+    {
+        let controls = controls.clone();
+        let out = out.clone();
+        let segment = segment.clone();
+        let context = context.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::InputEvent| {
+            let value = event
+                .target()
+                .as_ref()
+                .map(|t| wasm_bindgen::JsCast::dyn_ref::<web_sys::HtmlInputElement>(t))
+                .expect("Unable to get value")
+                .expect("Unable to get value")
+                .value();
+
+            let end_velocity = value.parse::<f32>().expect("Value is not valid f32");
+
+            segment.borrow_mut().set_end_velocity(end_velocity);
+
+            display_config(&out, &segment.borrow());
+            draw_profiles(&context.borrow(), &segment.borrow(), width, height);
+        }) as Box<dyn FnMut(_)>);
+
+        controls
+            .end_velocity
             .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }

@@ -77,6 +77,36 @@ impl TrajectorySegment {
         self.deltas = deltas;
     }
 
+    pub fn set_start_velocity(&mut self, velocity: f32) {
+        self.start_velocity = velocity;
+
+        let (deltas, max_reachable_velocity) = Self::compute_deltas_and_limits(
+            self.start,
+            self.end,
+            self.start_velocity,
+            self.end_velocity,
+            self.limits,
+        );
+
+        self.max_reachable_velocity = max_reachable_velocity;
+        self.deltas = deltas;
+    }
+
+    pub fn set_end_velocity(&mut self, velocity: f32) {
+        self.end_velocity = velocity;
+
+        let (deltas, max_reachable_velocity) = Self::compute_deltas_and_limits(
+            self.start,
+            self.end,
+            self.start_velocity,
+            self.end_velocity,
+            self.limits,
+        );
+
+        self.max_reachable_velocity = max_reachable_velocity;
+        self.deltas = deltas;
+    }
+
     /// Get position for a given time with initial parameters and constant acceleration
     ///
     /// TODO: Set up benchmarks and see if FMA (`.mul_add()`) speeds this up by much

@@ -152,8 +152,9 @@ impl TrajectorySegment {
         let decel = limits.acceleration * -accel_sign;
         let mut max_reachable_velocity = limits.velocity * accel_sign;
 
-        // Time to accelerate to Vmax
-        let mut dt1 = (max_reachable_velocity - start_velocity) / accel;
+        // Time to accelerate to Vmax. Note the call to `.abs()` to deal with cases `start_velocity`
+        // is greater the achievable limit.
+        let mut dt1 = (max_reachable_velocity - start_velocity).abs() / accel;
 
         // Time to decelerate to Vfinal
         // NOTE: I subtract Vfinal here where the paper assumes final velocity is zero

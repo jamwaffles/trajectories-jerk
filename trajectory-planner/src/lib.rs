@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 #[derive(Debug, Copy, Clone)]
 pub struct TrajectorySegment {
     start: f32,

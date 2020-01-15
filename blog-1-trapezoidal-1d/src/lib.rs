@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate log;
 extern crate console_error_panic_hook;
 
 use std::cell::RefCell;
@@ -8,12 +10,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::Element;
-
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
 
 struct Controls {
     max_velocity: Element,
@@ -104,9 +100,9 @@ fn draw_profiles(
 
 #[wasm_bindgen]
 pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console_log::init().ok();
 
-    log!("Thing: {:#?}", container);
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
 
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document

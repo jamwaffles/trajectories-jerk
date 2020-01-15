@@ -165,6 +165,7 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
     );
 
     draw_profiles(&context, &segment, width, height);
+    display_config(&out, &segment);
 
     let controls = Rc::new(controls);
     let out = Rc::new(out);

@@ -100,7 +100,7 @@ fn draw_profiles(
 
 #[wasm_bindgen]
 pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
-    console_log::init().ok();
+    console_log::init_with_level(log::Level::Trace).ok();
 
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 

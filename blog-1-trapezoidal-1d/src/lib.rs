@@ -37,6 +37,7 @@ fn draw_profiles(
     let padding = 10;
     let padded_width = width - padding * 2;
     let padding = padding as f64;
+    let y_scale = 20.0;
 
     // Position
     context.begin_path();
@@ -45,7 +46,7 @@ fn draw_profiles(
     for i in 0..padded_width {
         let time = segment.duration() * i as f32 / padded_width as f32;
 
-        let y = (height / 2) as f32 - segment.position(time) * 10.0;
+        let y = (height / 2) as f32 - segment.position(time) * y_scale;
 
         if i == 0 {
             context.move_to(padding, y as f64);
@@ -68,7 +69,7 @@ fn draw_profiles(
     for i in 0..padded_width {
         let time = segment.duration() * i as f32 / padded_width as f32;
 
-        let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
+        let y = (height / 2) as f32 - segment.velocity(time) * y_scale;
 
         if i == 0 {
             context.move_to(padding, y as f64);
@@ -90,7 +91,7 @@ fn draw_profiles(
     for i in 0..padded_width {
         let time = segment.duration() * i as f32 / padded_width as f32;
 
-        let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
+        let y = (height / 2) as f32 - segment.acceleration(time) * y_scale;
 
         if i == 0 {
             context.move_to(padding, y as f64);

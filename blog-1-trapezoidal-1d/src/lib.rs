@@ -40,7 +40,6 @@ fn draw_profiles(
 
     // Position
     context.begin_path();
-    context.move_to(padding, (height / 2) as f64);
     context.set_stroke_style(&("#000".into()));
 
     for i in 0..padded_width {
@@ -48,10 +47,14 @@ fn draw_profiles(
 
         let y = (height / 2) as f32 - segment.position(time) * 10.0;
 
-        context.line_to(
-            padding + (padded_width / padded_width) as f64 * i as f64,
-            y as f64,
-        );
+        if i == 0 {
+            context.move_to(padding, y as f64);
+        } else {
+            context.line_to(
+                padding + (padded_width / padded_width) as f64 * i as f64,
+                y as f64,
+            );
+        }
     }
 
     context.stroke();
@@ -59,7 +62,7 @@ fn draw_profiles(
 
     // Velocity
     context.begin_path();
-    context.move_to(padding, (height / 2) as f64);
+
     context.set_stroke_style(&("#f00".into()));
 
     for i in 0..padded_width {
@@ -67,10 +70,14 @@ fn draw_profiles(
 
         let y = (height / 2) as f32 - segment.velocity(time) * 10.0;
 
-        context.line_to(
-            padding + (padded_width / padded_width) as f64 * i as f64,
-            y as f64,
-        );
+        if i == 0 {
+            context.move_to(padding, y as f64);
+        } else {
+            context.line_to(
+                padding + (padded_width / padded_width) as f64 * i as f64,
+                y as f64,
+            );
+        }
     }
 
     context.stroke();
@@ -78,7 +85,6 @@ fn draw_profiles(
 
     // Acceleration
     context.begin_path();
-    context.move_to(padding, (height / 2) as f64);
     context.set_stroke_style(&("#00f".into()));
 
     for i in 0..padded_width {
@@ -86,10 +92,14 @@ fn draw_profiles(
 
         let y = (height / 2) as f32 - segment.acceleration(time) * 10.0;
 
-        context.line_to(
-            padding + (padded_width / padded_width) as f64 * i as f64,
-            y as f64,
-        );
+        if i == 0 {
+            context.move_to(padding, y as f64);
+        } else {
+            context.line_to(
+                padding + (padded_width / padded_width) as f64 * i as f64,
+                y as f64,
+            );
+        }
     }
 
     context.stroke();

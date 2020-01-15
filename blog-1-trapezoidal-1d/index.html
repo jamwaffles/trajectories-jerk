@@ -1,9 +1,28 @@
 <html>
   <head>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+
+    <style>
+      .demo {
+        display: inline-block;
+      }
+
+      .column {
+        display: flex;
+      }
+
+      .column > * {
+        flex: 1;
+      }
+
+      canvas {
+        margin: 10px;
+        background: #eee;
+      }
+    </style>
   </head>
   <body>
-    <div id="demo-container-trapezoidal-1d">
+    <div class="demo" id="demo-container-trapezoidal-1d">
       <div class="demo-controls">
         <div>
           <label
@@ -52,7 +71,10 @@
           /></label>
         </div>
       </div>
-      <pre class="out">Waiting for change...</pre>
+      <div class="column">
+        <pre class="out">Waiting for change...</pre>
+        <pre class="hover">Waiting for hover...</pre>
+      </div>
     </div>
 
     <!-- Note the usage of `type=module` here as this is an ES6 module -->
@@ -64,7 +86,7 @@
       // will "boot" the module and make it ready to use. Currently browsers
       // don't support natively imported WebAssembly as an ES module, but
       // eventually the manual initialization won't be required!
-      import init, { start } from './pkg/trapezoidal_1d.js';
+      import init, { start } from "./pkg/trapezoidal_1d.js";
 
       async function run() {
         // First up we need to actually load the wasm file, so we use the
@@ -82,7 +104,7 @@
         // modes
         await init();
 
-        start(document.getElementById('demo-container-trapezoidal-1d'));
+        start(document.getElementById("demo-container-trapezoidal-1d"));
       }
 
       run();

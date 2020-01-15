@@ -26,6 +26,13 @@ fn display_config(container: &Element, config: &TrajectorySegment) {
     container.set_inner_html(&format!("{:#?}", config));
 }
 
+fn display_hover(container: &Element, (time, pos, vel, acc): (f32, f32, f32, f32)) {
+    container.set_inner_html(&format!(
+        "Time:         {}\nPosition:     {}\nVelocity:     {}\nAcceleration: {}",
+        time, pos, vel, acc
+    ));
+}
+
 fn draw_profiles(
     context: &CanvasRenderingContext2d,
     segment: &TrajectorySegment,
@@ -34,27 +41,21 @@ fn draw_profiles(
 ) {
     context.clear_rect(0.0, 0.0, width as f64, height as f64);
 
-    let padding = 10;
-    let padded_width = width - padding * 2;
-    let padding = padding as f64;
     let y_scale = 20.0;
 
     // Position
     context.begin_path();
     context.set_stroke_style(&("#000".into()));
 
-    for i in 0..padded_width {
-        let time = segment.duration() * i as f32 / padded_width as f32;
+    for i in 0..width {
+        let time = segment.duration() * i as f32 / width as f32;
 
         let y = (height / 2) as f32 - segment.position(time) * y_scale;
 
         if i == 0 {
-            context.move_to(padding, y as f64);
+            context.move_to(0.0, y as f64);
         } else {
-            context.line_to(
-                padding + (padded_width / padded_width) as f64 * i as f64,
-                y as f64,
-            );
+            context.line_to((width / width) as f64 * i as f64, y as f64);
         }
     }
 
@@ -66,18 +67,15 @@ fn draw_profiles(
 
     context.set_stroke_style(&("#f00".into()));
 
-    for i in 0..padded_width {
-        let time = segment.duration() * i as f32 / padded_width as f32;
+    for i in 0..width {
+        let time = segment.duration() * i as f32 / width as f32;
 
         let y = (height / 2) as f32 - segment.velocity(time) * y_scale;
 
         if i == 0 {
-            context.move_to(padding, y as f64);
+            context.move_to(0.0, y as f64);
         } else {
-            context.line_to(
-                padding + (padded_width / padded_width) as f64 * i as f64,
-                y as f64,
-            );
+            context.line_to((width / width) as f64 * i as f64, y as f64);
         }
     }
 
@@ -88,18 +86,15 @@ fn draw_profiles(
     context.begin_path();
     context.set_stroke_style(&("#00f".into()));
 
-    for i in 0..padded_width {
-        let time = segment.duration() * i as f32 / padded_width as f32;
+    for i in 0..width {
+        let time = segment.duration() * i as f32 / width as f32;
 
         let y = (height / 2) as f32 - segment.acceleration(time) * y_scale;
 
         if i == 0 {
-            context.move_to(padding, y as f64);
+            context.move_to(0.0, y as f64);
         } else {
-            context.line_to(
-                padding + (padded_width / padded_width) as f64 * i as f64,
-                y as f64,
-            );
+            context.line_to((width / width) as f64 * i as f64, y as f64);
         }
     }
 
@@ -128,6 +123,10 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         .query_selector(".out")?
         .expect("Element .out is missing");
 
+    let hover = container
+        .query_selector(".hover")?
+        .expect("Element .hover is missing");
+
     let controls = Controls {
         max_velocity: control_inputs
             .query_selector("[name=max_velocity]")?
@@ -148,8 +147,6 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
 
     canvas.set_width(width);
     canvas.set_height(height);
-    canvas.style().set_property("border", "solid")?;
-    canvas.style().set_property("border-width", "1px")?;
 
     let context = canvas
         .get_context("2d")?
@@ -293,6 +290,30 @@ pub fn start(container: web_sys::HtmlDivElement) -> Result<(), JsValue> {
         controls
             .end_velocity
             .add_event_listener_with_callback("input", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    // Mousemove handler
+    {
+        let hover = hover.clone();
+        let segment = segment.clone();
+
+        let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+            let x = event.offset_x();
+
+            let time = segment.borrow().duration() * x as f32 / width as f32;
+
+            display_hover(
+                &hover,
+                (
+                    time,
+                    segment.borrow().position(time),
+                    segment.borrow().velocity(time),
+                    segment.borrow().acceleration(time),
+                ),
+            );
+        }) as Box<dyn FnMut(_)>);
+        canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
 

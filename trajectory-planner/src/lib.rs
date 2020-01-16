@@ -119,7 +119,7 @@ impl TrajectorySegment {
         initial_velocity: f32,
         acceleration: f32,
     ) -> f32 {
-        initial_position + (initial_velocity * time) + ((0.5 * acceleration) * time.powi(2))
+        initial_position + (initial_velocity * time) + (0.5 * acceleration * time.powi(2))
     }
 
     /// Compute the distance taken to go from initial velocity to a full stop
@@ -141,6 +141,8 @@ impl TrajectorySegment {
         end_velocity: f32,
         limits: Limits,
     ) -> (Deltas, f32) {
+        let end_velocity = end_velocity.min(limits.velocity);
+
         // Compute distance to full stop (`Xstop`) from start (`X0`)
         let distance_to_full_stop = Self::distance_to_full_stop(start, start_velocity, &limits);
 
@@ -155,9 +157,15 @@ impl TrajectorySegment {
         let decel = limits.acceleration * -accel_sign;
         let mut max_reachable_velocity = limits.velocity * accel_sign;
 
-        // Time to accelerate to Vmax. Note the call to `.abs()` to deal with cases `start_velocity`
-        // is greater the achievable limit.
-        let mut dt1 = (max_reachable_velocity - start_velocity).abs() / accel;
+        // Invert initial accel to decel if initial velocity is higher than max
+        let accel = if start_velocity > max_reachable_velocity {
+            -accel
+        } else {
+            accel
+        };
+
+        // Time to accelerate (or decelerate if Vinitial > Vmax) to Vmax.
+        let mut dt1 = (max_reachable_velocity - start_velocity) / accel;
 
         // Time to decelerate to Vfinal
         // NOTE: I subtract Vfinal here where the paper assumes final velocity is zero
@@ -186,7 +194,7 @@ impl TrajectorySegment {
             dt3 = (max_reachable_velocity * accel_sign - end_velocity) / accel;
 
             // Distance from Vinitial to Vmax
-            dx1 = Self::second_order(dt1, 0.0, start_velocity, accel);
+            dx1 = Self::second_order(dt1, 0.0, max_reachable_velocity - start_velocity, accel);
 
             // Distance from Vmax to Vfinal
             dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
@@ -218,20 +226,24 @@ impl TrajectorySegment {
     pub fn position(&self, time: f32) -> f32 {
         let Self { deltas, .. } = self;
 
-        if time <= deltas.dt1 {
+        if time < deltas.dt1 {
             // Acceleration phase
             Self::second_order(
                 time,
                 self.start,
                 self.start_velocity,
-                self.limits.acceleration,
+                if self.start_velocity > self.max_reachable_velocity {
+                    -self.limits.acceleration
+                } else {
+                    self.limits.acceleration
+                },
             )
-        } else if time > deltas.dt1 && time <= deltas.dt1 + deltas.dt2 {
+        } else if deltas.dt1 <= time && time < deltas.dt1 + deltas.dt2 {
             // Cruise phase
             Self::second_order(
                 time - deltas.dt1,
                 self.start + deltas.dx1,
-                self.limits.velocity,
+                self.max_reachable_velocity,
                 0.0,
             )
         } else {
@@ -249,10 +261,16 @@ impl TrajectorySegment {
     pub fn velocity(&self, time: f32) -> f32 {
         let Self { deltas, .. } = self;
 
-        if time <= deltas.dt1 {
+        if time < deltas.dt1 {
+            let accel = if self.start_velocity > self.max_reachable_velocity {
+                -self.limits.acceleration
+            } else {
+                self.limits.acceleration
+            };
+
             // Acceleration phase
-            self.limits.acceleration * time + self.start_velocity
-        } else if time > deltas.dt1 && time <= deltas.dt1 + deltas.dt2 {
+            accel * time + self.start_velocity
+        } else if deltas.dt1 <= time && time < deltas.dt1 + deltas.dt2 {
             // Cruise phase
             self.max_reachable_velocity
         } else {
@@ -266,10 +284,14 @@ impl TrajectorySegment {
     pub fn acceleration(&self, time: f32) -> f32 {
         let Self { deltas, .. } = self;
 
-        if time <= deltas.dt1 {
+        if time < deltas.dt1 {
             // Acceleration phase
-            self.limits.acceleration
-        } else if time > deltas.dt1 && time <= deltas.dt1 + deltas.dt2 {
+            if self.start_velocity > self.max_reachable_velocity {
+                -self.limits.acceleration
+            } else {
+                self.limits.acceleration
+            }
+        } else if deltas.dt1 <= time && time < deltas.dt1 + deltas.dt2 {
             // Cruise phase
             0.0
         } else {

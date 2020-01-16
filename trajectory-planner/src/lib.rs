@@ -183,21 +183,27 @@ impl TrajectorySegment {
         // profile
         if dt2 <= 0.0 {
             // Recalculate max velocity based on wedge profile max velocity
-            max_reachable_velocity =
-                (accel * (end - start) + (0.5 * start_velocity.powi(2))).sqrt();
+            max_reachable_velocity = ((limits.acceleration * accel_sign) * (end - start)
+                + (0.5 * start_velocity.powi(2)))
+            .sqrt();
 
             // Time to accelerate to Vmax
-            dt1 = (max_reachable_velocity * accel_sign - start_velocity) / accel;
+            dt1 = (max_reachable_velocity - start_velocity) / accel;
 
             dt2 = 0.0;
 
-            dt3 = (max_reachable_velocity * accel_sign - end_velocity) / accel;
+            dt3 = (max_reachable_velocity - end_velocity) / accel;
 
             // Distance from Vinitial to Vmax
-            dx1 = Self::second_order(dt1, 0.0, max_reachable_velocity - start_velocity, accel);
+            dx1 = Self::second_order(dt1, 0.0, max_reachable_velocity - start_velocity, decel);
 
             // Distance from Vmax to Vfinal
-            dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
+            dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity - end_velocity, decel);
+
+            debug!(
+                "dt1 {}, dt2 {}, dt3 {}, accel {}, decel {}, max_reachable_velocity {}",
+                dt1, dt2, dt3, accel, decel, max_reachable_velocity
+            );
         }
 
         let dx2 = max_reachable_velocity * dt2;

@@ -125,7 +125,7 @@ impl TrajectorySegment {
     /// Compute the distance taken to go from initial velocity to a full stop
     ///
     /// This is denoted as `Xstop` in the paper
-    fn distance_to_full_stop(start: f32, start_velocity: f32, limits: &Limits) -> f32 {
+    fn position_at_full_stop(start: f32, start_velocity: f32, limits: &Limits) -> f32 {
         // Time to decelerate to 0 velocity
         let time = start_velocity / limits.acceleration;
 
@@ -141,72 +141,50 @@ impl TrajectorySegment {
         end_velocity: f32,
         limits: Limits,
     ) -> (Deltas, f32) {
-        let end_velocity = end_velocity.min(limits.velocity);
+        let stop_pos = Self::position_at_full_stop(start, start_velocity, &limits);
 
-        // Compute distance to full stop (`Xstop`) from start (`X0`)
-        let distance_to_full_stop = Self::distance_to_full_stop(start, start_velocity, &limits);
+        debug!("stop_pos {}", stop_pos);
 
-        // Get the sign of acceleration (`d`)
-        let accel_sign = if start_velocity != 0.0 {
-            (end - distance_to_full_stop).signum()
-        } else {
-            (end - start).signum()
-        };
+        // Sign of acceleration
+        let d = (end - stop_pos).signum();
 
-        let accel = limits.acceleration * accel_sign;
-        let decel = limits.acceleration * -accel_sign;
-        let mut max_reachable_velocity = limits.velocity * accel_sign;
+        let mut d_accel = d;
+        let d_decel = -d;
 
-        // Invert initial accel to decel if initial velocity is higher than max
-        let accel = if start_velocity > max_reachable_velocity {
-            -accel
-        } else {
-            accel
-        };
+        if start_velocity > limits.velocity {
+            d_accel = -d;
+        }
 
-        // Time to accelerate (or decelerate if Vinitial > Vmax) to Vmax.
+        debug!("d {}, d_accel {}, d_decel {}", d, d_accel, d_decel);
+
+        // `v`
+        let mut max_reachable_velocity = d * limits.velocity;
+        // `a_acc`
+        let accel = limits.acceleration * d_accel;
+        // `a_dec`
+        let decel = limits.acceleration * d_decel;
+
         let mut dt1 = (max_reachable_velocity - start_velocity) / accel;
+        let mut dt3 = (max_reachable_velocity / decel).abs();
 
-        // Time to decelerate to Vfinal
-        // NOTE: I subtract Vfinal here where the paper assumes final velocity is zero
-        let mut dt3 = ((max_reachable_velocity - end_velocity) * -accel_sign) / decel;
-
-        // Distance from Vinitial to Vmax
         let mut dx1 = Self::second_order(dt1, 0.0, start_velocity, accel);
-
-        // Distance from Vmax to Vfinal
         let mut dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
 
         let mut dt2 = (end - (start + dx1 + dx3)) / max_reachable_velocity;
 
-        // Negative cruise duration - we need to shorten accel/decel to create a wedge shaped
-        // profile
-        if dt2 <= 0.0 {
-            // Recalculate max velocity based on wedge profile max velocity
-            max_reachable_velocity = ((limits.acceleration * accel_sign) * (end - start)
-                + (0.5 * start_velocity.powi(2)))
-            .sqrt();
+        if dt2 < 0.0 {
+            max_reachable_velocity =
+                ((d * limits.acceleration) * (end - start) + (0.5 * start_velocity.powi(2))).sqrt();
 
-            // Time to accelerate to Vmax
-            dt1 = (max_reachable_velocity - start_velocity) / accel;
-
+            dt1 = (d_accel * max_reachable_velocity - start_velocity) / accel;
             dt2 = 0.0;
+            dt3 = (d_decel * max_reachable_velocity) / decel;
 
-            dt3 = (max_reachable_velocity - end_velocity) / accel;
-
-            // Distance from Vinitial to Vmax
-            dx1 = Self::second_order(dt1, 0.0, max_reachable_velocity - start_velocity, decel);
-
-            // Distance from Vmax to Vfinal
-            dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity - end_velocity, decel);
-
-            debug!(
-                "dt1 {}, dt2 {}, dt3 {}, accel {}, decel {}, max_reachable_velocity {}",
-                dt1, dt2, dt3, accel, decel, max_reachable_velocity
-            );
+            dx1 = Self::second_order(dt1, 0.0, start_velocity, accel);
+            dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
         }
 
-        let dx2 = max_reachable_velocity * dt2;
+        let dx2 = Self::second_order(dt2, 0.0, max_reachable_velocity, 0.0);
 
         (
             Deltas {

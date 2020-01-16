@@ -37,7 +37,7 @@ fn draw_profiles(
 ) {
     context.clear_rect(0.0, 0.0, width as f64, height as f64);
 
-    let y_scale = 20.0;
+    let y_scale = 10.0;
 
     // Position
     context.begin_path();

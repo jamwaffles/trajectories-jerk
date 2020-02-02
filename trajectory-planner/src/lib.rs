@@ -1,7 +1,10 @@
 #[macro_use]
 extern crate log;
 
+use std::error::Error;
+
 #[derive(Debug, Copy, Clone)]
+
 pub struct TrajectorySegment {
     start: f32,
     end: f32,
@@ -37,7 +40,8 @@ impl TrajectorySegment {
         limits: Limits,
     ) -> Self {
         let (deltas, max_reachable_velocity) =
-            Self::compute_deltas_and_limits(start, end, start_velocity, end_velocity, limits);
+            Self::compute_deltas_and_limits(start, end, start_velocity, end_velocity, limits)
+                .unwrap();
 
         Self {
             start,
@@ -49,7 +53,6 @@ impl TrajectorySegment {
             max_reachable_velocity,
         }
     }
-
     pub fn set_velocity_limit(&mut self, limit: f32) {
         self.limits.velocity = limit;
 
@@ -59,7 +62,8 @@ impl TrajectorySegment {
             self.start_velocity,
             self.end_velocity,
             self.limits,
-        );
+        )
+        .unwrap();
 
         self.max_reachable_velocity = max_reachable_velocity;
         self.deltas = deltas;
@@ -74,7 +78,8 @@ impl TrajectorySegment {
             self.start_velocity,
             self.end_velocity,
             self.limits,
-        );
+        )
+        .unwrap();
 
         self.max_reachable_velocity = max_reachable_velocity;
         self.deltas = deltas;
@@ -89,7 +94,8 @@ impl TrajectorySegment {
             self.start_velocity,
             self.end_velocity,
             self.limits,
-        );
+        )
+        .unwrap();
 
         self.max_reachable_velocity = max_reachable_velocity;
         self.deltas = deltas;
@@ -104,7 +110,8 @@ impl TrajectorySegment {
             self.start_velocity,
             self.end_velocity,
             self.limits,
-        );
+        )
+        .unwrap();
 
         self.max_reachable_velocity = max_reachable_velocity;
         self.deltas = deltas;
@@ -140,7 +147,7 @@ impl TrajectorySegment {
         start_velocity: f32,
         end_velocity: f32,
         limits: Limits,
-    ) -> (Deltas, f32) {
+    ) -> Result<(Deltas, f32), Box<dyn Error>> {
         let stop_pos = Self::position_at_full_stop(start, start_velocity, &limits);
 
         // Clamp final velocity at limit
@@ -176,10 +183,13 @@ impl TrajectorySegment {
         let mut dt2 = (end - (start + dx1 + dx3)) / max_reachable_velocity;
 
         if dt2 < 0.0 {
+            debug!("LT0");
             max_reachable_velocity =
-                ((d * limits.acceleration) * (end - start) + (0.5 * start_velocity.powi(2))).sqrt();
+                (d_accel * (end - start) + (0.5 * (start_velocity - end_velocity).powi(2))).sqrt();
 
-            dt1 = (d_accel * max_reachable_velocity - start_velocity) / accel;
+            debug!("New max reachable {}", max_reachable_velocity);
+
+            dt1 = (d_accel * (max_reachable_velocity - start_velocity)) / accel;
             dt2 = 0.0;
             dt3 = (d_decel * (max_reachable_velocity - end_velocity)) / decel;
 
@@ -189,17 +199,55 @@ impl TrajectorySegment {
 
         let dx2 = Self::second_order(dt2, 0.0, max_reachable_velocity, 0.0);
 
-        (
-            Deltas {
-                dt1,
-                dt2,
-                dt3,
-                dx1,
-                dx2,
-                dx3,
-            },
-            max_reachable_velocity,
-        )
+        let deltas = Deltas {
+            dt1,
+            dt2,
+            dt3,
+            dx1,
+            dx2,
+            dx3,
+        };
+
+        Self::validate_deltas(&deltas, start, end)?;
+
+        Ok((deltas, max_reachable_velocity))
+    }
+
+    fn validate_deltas(deltas: &Deltas, start: f32, end: f32) -> Result<(), String> {
+        let Deltas {
+            dt1,
+            dt2,
+            dt3,
+            dx1,
+            dx2,
+            dx3,
+        } = deltas;
+
+        let total_delta = end - start;
+
+        // Times must be positive
+        // TODO: Bench this vs infinite check and a gte 0
+        if !dt1.is_finite() || !dt1.is_sign_positive() {
+            return Err(format!("initial accel or decel time {} is negative", dt1));
+        }
+        if !dt2.is_finite() || !dt2.is_sign_positive() {
+            return Err(format!("cruise time {} is negative", dt2));
+        }
+        if !dt3.is_finite() || !dt3.is_sign_positive() {
+            return Err(format!("final decel time {} is negative", dt3));
+        }
+
+        let calculated_delta = dx1 + dx2 + dx3;
+
+        // Sum of calculated deltas must equal total delta between waypoints
+        if !approx::ulps_eq!(calculated_delta, total_delta) {
+            return Err(format!(
+                "calculated distance {:.32} does not equal total delta {:.32}",
+                calculated_delta, total_delta
+            ));
+        }
+
+        Ok(())
     }
 
     /// Get total duration

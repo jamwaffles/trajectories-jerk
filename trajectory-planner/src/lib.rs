@@ -143,6 +143,9 @@ impl TrajectorySegment {
     ) -> (Deltas, f32) {
         let stop_pos = Self::position_at_full_stop(start, start_velocity, &limits);
 
+        // Clamp final velocity at limit
+        let end_velocity = end_velocity.min(limits.velocity);
+
         debug!("stop_pos {}", stop_pos);
 
         // Sign of acceleration
@@ -165,7 +168,7 @@ impl TrajectorySegment {
         let decel = limits.acceleration * d_decel;
 
         let mut dt1 = (max_reachable_velocity - start_velocity) / accel;
-        let mut dt3 = (max_reachable_velocity / decel).abs();
+        let mut dt3 = ((max_reachable_velocity - end_velocity) / decel).abs();
 
         let mut dx1 = Self::second_order(dt1, 0.0, start_velocity, accel);
         let mut dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
@@ -178,7 +181,7 @@ impl TrajectorySegment {
 
             dt1 = (d_accel * max_reachable_velocity - start_velocity) / accel;
             dt2 = 0.0;
-            dt3 = (d_decel * max_reachable_velocity) / decel;
+            dt3 = (d_decel * (max_reachable_velocity - end_velocity)) / decel;
 
             dx1 = Self::second_order(dt1, 0.0, start_velocity, accel);
             dx3 = Self::second_order(dt3, 0.0, max_reachable_velocity, decel);
